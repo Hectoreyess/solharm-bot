@@ -86,7 +86,25 @@ async function downloadMetaImage(mediaId) {
     mediaType: infoRes.data.mime_type || 'image/jpeg',
   };
 }
+// ─── Reintento automático ─────────────────────────────────────────────────────
 
+async function withRetry(fn, maxRetries = 3, delayMs = 2000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isOverloaded = err?.error?.type === 'overloaded_error' || 
+                           err?.message?.includes('overloaded') ||
+                           err?.status === 529;
+      if (isOverloaded && attempt < maxRetries) {
+        console.log(`[retry] Intento ${attempt} fallido por sobrecarga, reintentando en ${delayMs}ms...`);
+        await new Promise(r => setTimeout(r, delayMs * attempt));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
 // ─── Análisis de recibo con Claude Vision ─────────────────────────────────────
 
 const BILL_PROMPT =
@@ -124,12 +142,12 @@ async function analyzeBill(frontMediaId, backMediaId = null) {
     ? 'Aquí tienes el FRENTE y el REVERSO del mismo recibo de CFE. Analiza ambas imágenes juntas.\n\n'
     : 'Analiza este recibo de luz de CFE.\n\n';
 
-  const response = await anthropic.messages.create({
+ const response = await withRetry(() => anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: [{ type: 'text', text: 'Eres un experto en facturas de electricidad de CFE México. Extraes datos de consumo eléctrico y los devuelves en JSON válido.', cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: introText + BILL_PROMPT }] }],
-  });
+  }));
 
   const raw = response.content[0].text.trim();
   const match = raw.match(/\{[\s\S]*\}/);
