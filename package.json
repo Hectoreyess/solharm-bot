@@ -1,0 +1,21 @@
+{
+  "name": "solharm-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp bot para SOLHARM Energía Solar",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pdfkit": "^0.18.0",
+    "twilio": "^5.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

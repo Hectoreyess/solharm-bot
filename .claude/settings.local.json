@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cloudflared --version)",
+      "Bash(node index.js)",
+      "Bash(echo \"Bot PID: $!\")",
+      "Bash(cloudflared tunnel *)",
+      "Bash(echo \"Cloudflared PID: $!\")",
+      "Bash(xargs kill -9)"
+    ]
+  }
+}
