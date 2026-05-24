@@ -412,7 +412,40 @@ async function handleIncoming(from, bodyText, mediaId) {
     }
   }
 }
+// ─── Google Calendar OAuth ────────────────────────────────────────────────────
 
+const { google } = require('googleapis');
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
+
+// Cargar tokens si existen en variables de entorno
+if (process.env.GOOGLE_TOKENS) {
+  oauth2Client.setCredentials(JSON.parse(process.env.GOOGLE_TOKENS));
+}
+
+app.get('/auth', (req, res) => {
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/calendar'],
+  });
+  res.redirect(url);
+});
+
+app.get('/auth/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    console.log('GOOGLE_TOKENS=' + JSON.stringify(tokens));
+    res.send('✅ Autorización exitosa. Copia el token de los logs de Railway y agrégalo como variable GOOGLE_TOKENS.');
+  } catch (err) {
+    res.send('❌ Error: ' + err.message);
+  }
+});
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 // Verificación del webhook (Meta lo llama una vez para verificar)
