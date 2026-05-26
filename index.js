@@ -393,14 +393,67 @@ async function handleIncoming(from, bodyText, mediaId) {
     }
 
     case 'scheduling': {
+  const fechaIntento = parseDateTime(bodyText || '');
+  
+  if (!fechaIntento) {
+    await send(from,
+      `No entendí bien la fecha y hora 😊 ¿Podría indicarme algo como:\n\n` +
+      `"martes a las 3pm"\n"mañana a las 10am"\n"viernes 11:30am"`
+    );
+    break;
+  }
+
+  if (!esDentroDeHorario(fechaIntento)) {
+    await send(from,
+      `Lo siento, ese horario está fuera de nuestro horario de atención 😊\n\n` +
+      `📅 *Horario SOLHARM:*\n` +
+      `Lunes a viernes: 9:00am — 7:00pm\n` +
+      `Sábados: 9:00am — 1:30pm\n` +
+      `Domingos: Cerrado\n\n` +
+      `¿Qué otro horario le viene bien?`
+    );
+    break;
+  }
+
+  try {
+    const disponible = await verificarDisponibilidad(fechaIntento);
+    
+    if (!disponible) {
+      const siguiente = new Date(fechaIntento.getTime() + 60 * 60 * 1000);
+      const anterior = new Date(fechaIntento.getTime() - 60 * 60 * 1000);
+      const fmt = (d) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
       await send(from,
-        `✅ *¡Gracias! Su cita ha quedado registrada.*\n\n` +
-        `Un asesor de *SOLHARM* se pondrá en contacto en las próximas horas para confirmar. 🤝☀️`
+        `Lo siento, ese horario ya está reservado 😊\n\n` +
+        `¿Le parece bien a las *${fmt(anterior)}* o a las *${fmt(siguiente)}*?`
       );
-      session.state = 'done';
       break;
     }
 
+    await agendarCita(fechaIntento, session.clientName, from);
+    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const fmt = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const dia = dias[fechaIntento.getDay()];
+    const fecha = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+
+    await send(from,
+      `✅ *¡Cita agendada exitosamente!*\n\n` +
+      `📅 *${dia} ${fecha} a las ${fmt}*\n` +
+      `👤 ${session.clientName}\n\n` +
+      `Le esperamos en nuestras oficinas de *SOLHARM* (Col. Tecnológico) 🤝☀️\n\n` +
+      `¡Gracias por su confianza!`
+    );
+    session.state = 'done';
+
+  } catch (err) {
+    console.error('[Calendar error]', err.message);
+    await send(from,
+      `✅ *¡Su cita ha quedado registrada!*\n\n` +
+      `Un asesor confirmará los detalles a la brevedad 🤝`
+    );
+    session.state = 'done';
+  }
+  break;
+}
     case 'done': {
       await send(from, `¡Hola de nuevo! 😊 Escriba *hola* para iniciar una nueva consulta con *SOLHARM Energía Solar* ☀️`);
       break;
@@ -445,7 +498,98 @@ app.get('/auth/callback', async (req, res) => {
   } catch (err) {
     res.send('❌ Error: ' + err.message);
   }
-});
+});// ─── Google Calendar funciones ────────────────────────────────────────────────
+
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
+const HORARIO = {
+  lunes: { inicio: 9, fin: 19 },
+  martes: { inicio: 9, fin: 19 },
+  miércoles: { inicio: 9, fin: 19 },
+  jueves: { inicio: 9, fin: 19 },
+  viernes: { inicio: 9, fin: 19 },
+  sábado: { inicio: 9, fin: 13.5 },
+  domingo: null,
+};
+
+function parseDateTime(texto) {
+  const dias = { lunes:1, martes:2, miércoles:3, jueves:4, viernes:5, sábado:6, sabado:6, domingo:0, domigo:0 };
+  const meses = { enero:0, febrero:1, marzo:2, abril:3, mayo:4, junio:5, julio:6, agosto:7, septiembre:8, octubre:9, noviembre:10, diciembre:11 };
+  
+  const t = texto.toLowerCase();
+  const ahora = new Date();
+  let fecha = null;
+  let hora = null;
+
+  // Detectar hora (2pm, 14:00, 2:30pm, etc)
+  const horaMatch = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (horaMatch) {
+    let h = parseInt(horaMatch[1]);
+    const m = parseInt(horaMatch[2] || '0');
+    const ampm = horaMatch[3];
+    if (ampm === 'pm' && h < 12) h += 12;
+    if (ampm === 'am' && h === 12) h = 0;
+    hora = { h, m };
+  }
+
+  // Detectar día de la semana
+  for (const [dia, num] of Object.entries(dias)) {
+    if (t.includes(dia)) {
+      const hoy = ahora.getDay();
+      let diff = num - hoy;
+      if (diff <= 0) diff += 7;
+      fecha = new Date(ahora);
+      fecha.setDate(ahora.getDate() + diff);
+      break;
+    }
+  }
+
+  // Detectar "mañana" o "hoy"
+  if (t.includes('mañana')) {
+    fecha = new Date(ahora);
+    fecha.setDate(ahora.getDate() + 1);
+  } else if (t.includes('hoy')) {
+    fecha = new Date(ahora);
+  }
+
+  if (!fecha || !hora) return null;
+
+  fecha.setHours(hora.h, hora.m, 0, 0);
+  return fecha;
+}
+
+function esDentroDeHorario(fecha) {
+  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const dia = dias[fecha.getDay()];
+  const horario = HORARIO[dia];
+  if (!horario) return false;
+  const horaDecimal = fecha.getHours() + fecha.getMinutes() / 60;
+  return horaDecimal >= horario.inicio && horaDecimal + 1 <= horario.fin;
+}
+
+async function verificarDisponibilidad(inicio) {
+  const fin = new Date(inicio.getTime() + 60 * 60 * 1000);
+  const res = await google.calendar({version:'v3', auth: oauth2Client}).events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: inicio.toISOString(),
+    timeMax: fin.toISOString(),
+    singleEvents: true,
+  });
+  return res.data.items.length === 0;
+}
+
+async function agendarCita(inicio, nombre, telefono) {
+  const fin = new Date(inicio.getTime() + 60 * 60 * 1000);
+  const event = {
+    summary: `Cita SOLHARM — ${nombre}`,
+    description: `Cliente: ${nombre}\nTeléfono: ${telefono}`,
+    start: { dateTime: inicio.toISOString(), timeZone: 'America/Monterrey' },
+    end: { dateTime: fin.toISOString(), timeZone: 'America/Monterrey' },
+  };
+  await google.calendar({version:'v3', auth: oauth2Client}).events.insert({
+    calendarId: CALENDAR_ID,
+    requestBody: event,
+  });
+}
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 // Verificación del webhook (Meta lo llama una vez para verificar)
