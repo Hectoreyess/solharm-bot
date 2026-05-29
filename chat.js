@@ -255,7 +255,10 @@ async function handleMessage(text, imagePath) {
   if (!imagePath && BLOCKING_STATES.includes(session.state)) {
     const faqAnswer = detectarFAQ(lower);
     if (faqAnswer) {
-      await printBot(faqAnswer);
+      const invitacion = ['waiting_front', 'waiting_back'].includes(session.state)
+        ? '\n\n📸 Si gusta, puede compartirme una foto de su recibo de CFE y le hago una cotización personalizada 😊'
+        : '';
+      await printBot(faqAnswer + invitacion);
       return;
     }
     if (/\bduda\b|tengo (una )?pregunta|quisiera preguntar|quería (preguntar|consultar)|quiero preguntar|me (puede|podría|pueden) (ayudar|asesorar|orientar|dar información)/i.test(lower)) {
