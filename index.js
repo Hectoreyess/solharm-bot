@@ -430,11 +430,23 @@ async function handleIncoming(from, bodyText, mediaId) {
     }
 
     await agendarCita(fechaIntento, session.clientName, from);
+    
     const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
     const fmt = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
     const dia = dias[fechaIntento.getDay()];
     const fecha = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-
+   
+// Notificar al número de tu papá
+const NUMERO_PAPA = '528666388384';
+const diaNotif = dias[fechaIntento.getDay()];
+const fechaNotif = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+const horaNotif = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+await send(NUMERO_PAPA,
+  `📅 *Nueva cita agendada — SOLHARM*\n\n` +
+  `👤 Cliente: ${session.clientName}\n` +
+  `📞 Teléfono: ${from}\n` +
+  `🕐 ${diaNotif} ${fechaNotif} a las ${horaNotif}`
+);
     await send(from,
       `✅ *¡Cita agendada exitosamente!*\n\n` +
       `📅 *${dia} ${fecha} a las ${fmt}*\n` +
