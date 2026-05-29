@@ -155,6 +155,88 @@ async function analyzeBill(frontMediaId, backMediaId = null) {
   return JSON.parse(match[0]);
 }
 
+// ─── Preguntas frecuentes ─────────────────────────────────────────────────────
+
+const FAQS = [
+  { pattern: /cuánto cuesta|cuanto cuesta|precio.*instal|costo.*instal|cuánto val[eo]|cuanto val[eo]|cuánto cobran|cuanto cobran/i,
+    answer: '💰 *¿Cuánto cuesta instalar paneles?*\n\nDepende del consumo. Los sistemas van de *$48,300 a $180,000 MXN* ya instalados. Con su recibo de CFE calculamos el precio exacto. 😊' },
+  { pattern: /recupera.*inver|tiempo.*recuper|cuándo.*recuper|cuando.*recuper|retorno.*inver/i,
+    answer: '📈 *¿En cuánto tiempo se recupera la inversión?*\n\nNormalmente en *2 años* dependiendo de lo que pague de CFE. Después de eso, la energía es prácticamente gratuita. ☀️' },
+  { pattern: /cuántos panel|cuantos panel|cuántos necesit|cuantos necesit/i,
+    answer: '🔆 *¿Cuántos paneles necesito?*\n\nSe calcula con su recibo de CFE. Con el historial de consumo le decimos exactamente cuántos necesita. 📸' },
+  { pattern: /baj.*recibo|baj.*factura|reducen.*recibo|cuánto bajan|cuanto bajan/i,
+    answer: '⚡ *¿Bajan mucho el recibo?*\n\nSí, normalmente entre *80% y 99%*. La mayoría de nuestros clientes pagan muy poco o casi nada de CFE. 🎉' },
+  { pattern: /nublad|día.*nublad|dias.*nublad/i,
+    answer: '☁️ *¿Funcionan aunque esté nublado?*\n\nSí, siguen produciendo energía, solo que un poco menos que en día completamente soleado. 😊' },
+  { pattern: /se va la luz|apagón|apagon|corte.*luz|luz.*se va|sin luz/i,
+    answer: '🔌 *¿Qué pasa si se va la luz?*\n\nLos sistemas conectados a CFE se apagan por seguridad. Para tener luz en apagones necesitaría baterías o sistema híbrido. 🔋' },
+  { pattern: /de noche|panel.*noche|produc.*noche|energía.*noche|energia.*noche/i,
+    answer: '🌙 *¿Funcionan de noche?*\n\nNo producen de noche, pero puede usar energía en baterías o la red de CFE durante las horas sin sol. 😊' },
+  { pattern: /cuántos años duran|cuantos años duran|vida útil|vida util|cuánto duran|cuanto duran/i,
+    answer: '⏳ *¿Cuántos años duran?*\n\nAproximadamente *25 a 30 años*. Son muy duraderos y siguen funcionando por décadas. ☀️' },
+  { pattern: /mantenimiento|limpieza.*panel|limpiar.*panel/i,
+    answer: '🔧 *¿Qué mantenimiento necesitan?*\n\nPrincipalmente *limpieza cada 4 a 6 meses* y revisión básica del sistema. Muy sencillo y económico. 😊' },
+  { pattern: /granizo|lluvia.*daño|daño.*lluvia|resist.*lluvia|resist.*granizo/i,
+    answer: '🌧️ *¿Se dañan con granizo o lluvia?*\n\nNo, están diseñados para soportar climas extremos y granizo moderado. Son muy resistentes. 💪' },
+  { pattern: /garantía|garantia/i,
+    answer: '📋 *¿Qué garantía tienen?*\n\nNormalmente entre *10 y 25 años* dependiendo de la marca. Cubrimos paneles y equipo de inversión. 😊' },
+  { pattern: /qué marca|que marca|cuál.*marca|cual.*marca/i,
+    answer: '🏷️ *¿Qué marcas manejan?*\n\nTrabajamos con marcas reconocidas con garantía y certificaciones internacionales. Le asesoramos sobre la mejor opción. 😊' },
+  { pattern: /espacio.*techo|techo.*espacio|cuánto espacio|cuanto espacio/i,
+    answer: '📐 *¿Cuánto espacio necesito en el techo?*\n\nAproximadamente *2 m² por panel*. Para 10 paneles, unos 20 m² de techo disponible. 😊' },
+  { pattern: /minisplit|aire acondicionado|aire.*acondicion/i,
+    answer: '❄️ *¿Sirven para minisplit y clima?*\n\nSí, ayudan mucho a reducir el gasto del aire acondicionado. ☀️' },
+  { pattern: /toda (la )?casa|toda mi casa|cubrir.*casa|casa completa/i,
+    answer: '🏠 *¿Puedo conectar toda mi casa?*\n\nSí, el sistema puede diseñarse para cubrir todo su consumo eléctrico. 😊' },
+  { pattern: /permiso.*cfe|cfe.*permiso|trámite.*cfe|tramite.*cfe|necesito permiso|ustedes.*trámite|ustedes.*tramite|hacen.*trámite|hacen.*tramite/i,
+    answer: '📋 *Trámites con CFE*\n\nSí, se tramita el medidor bidireccional. *Nosotros nos encargamos de todo el proceso*, usted no tiene que hacer nada. 🤝' },
+  { pattern: /cuánto tarda.*instal|cuanto tarda.*instal|días.*instal|tiempo.*instal/i,
+    answer: '⏱️ *¿Cuánto tarda la instalación?*\n\nLa instalación toma *1 a 3 días*. El trámite del medidor con CFE toma 2 a 2.5 meses adicionales. 😊' },
+  { pattern: /negocio|comercial|empresa|industria/i,
+    answer: '🏢 *¿Hacen instalaciones en negocios?*\n\nSí, instalamos en *casas, negocios e industrias*. Con gusto le preparamos una propuesta. 😊' },
+  { pattern: /financiamiento|financiam|anticipo.*plazo|pago.*plazo/i,
+    answer: '💳 *¿Tienen financiamiento?*\n\nSí, *50% de anticipo y el resto en hasta 6 pagos mensuales*. Damos facilidades para que empiece a ahorrar cuanto antes. 😊' },
+  { pattern: /agregar.*panel|añadir.*panel|más panel|ampliar.*sistema|expandir/i,
+    answer: '🔆 *¿Puedo agregar más paneles después?*\n\nSí, en la mayoría de los casos el sistema se puede ampliar fácilmente. 😊' },
+  { pattern: /techo.*aguanta|aguanta.*techo|peso.*panel|panel.*peso/i,
+    answer: '🏗️ *¿Mi techo aguanta el peso?*\n\nGeneralmente sí. Los paneles son más ligeros de lo que la gente cree, y hacemos evaluación antes de instalar. 😊' },
+  { pattern: /batería|bateria/i,
+    answer: '🔋 *¿Y las baterías?*\n\nSolo se incluyen si el cliente las solicita. Las recomendamos cuando se necesitan de verdad, ya que elevan el costo. El precio varía según la capacidad requerida. 😊' },
+  { pattern: /monitorear|monitoreo|ver.*celular|app.*panel|consumo.*celular/i,
+    answer: '📱 *¿Puedo monitorear desde el celular?*\n\nSí, puede ver producción y consumo en tiempo real desde una app en su teléfono. 😊' },
+  { pattern: /vend.*casa|mudanz|me mudo|valor.*propiedad|valor.*casa/i,
+    answer: '🏠 *¿Qué pasa si vendo mi casa o me mudo?*\n\nPodemos desmontar e instalar en su nueva casa. Además, los paneles *aumentan el valor de la propiedad*. 😊' },
+  { pattern: /panel.*deja.*funcionar|panel.*falla\b|panel.*no funciona/i,
+    answer: '🔧 *¿Qué pasa si un panel deja de funcionar?*\n\nSe revisa y se aplica la garantía si corresponde. Nuestro equipo le apoya en todo el proceso. 😊' },
+  { pattern: /lámina|lamina|techo.*metal\b|techo metálico/i,
+    answer: '🏚️ *¿Se pueden instalar en techo de lámina?*\n\nSí, existen estructuras especiales para techos de lámina o cualquier tipo de techo. 😊' },
+  { pattern: /cuándo empiez.*ahorr|cuando empiez.*ahorr|desde cuándo ahorr|primer.*recibo.*ahorr/i,
+    answer: '💰 *¿Desde cuándo empiezan a ahorrar?*\n\n¡Desde el primer recibo después de la conexión con CFE! El ahorro se refleja inmediatamente. 🎉' },
+  { pattern: /rentad|en renta|alquiler|casa rentada/i,
+    answer: '🏠 *¿Y si mi casa es rentada?*\n\nSí se pueden instalar. En caso de mudanza también hacemos el cambio a la nueva ubicación. 😊' },
+];
+
+function detectarFAQ(text) {
+  for (const faq of FAQS) {
+    if (faq.pattern.test(text)) return faq.answer;
+  }
+  return null;
+}
+
+const BLOCKING_STATES = ['waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling'];
+
+function mensajeRetoma(state) {
+  switch (state) {
+    case 'waiting_front':     return '📸 Cuando guste, comparta la foto del *frente* de su recibo de CFE para continuar 😊';
+    case 'waiting_back':      return '📸 Cuando guste, también necesito la foto del *reverso* del recibo para completar el análisis 😊';
+    case 'asking_growth':     return '¿Tiene planeado agregar aparatos eléctricos en el futuro (minisplits, calentador, etc.)? Solo responda *Sí* o *No* 😊';
+    case 'waiting_nombre':    return '¿Me podría decir su *nombre completo* para generarle la cotización? 😊';
+    case 'waiting_direccion': return '¿Me podría indicar su *dirección o municipio*? 😊';
+    case 'scheduling':        return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
+    default:                  return null;
+  }
+}
+
 // ─── Lógica de conversación ───────────────────────────────────────────────────
 
 async function handleIncoming(from, bodyText, mediaId) {
@@ -165,6 +247,17 @@ async function handleIncoming(from, bodyText, mediaId) {
   if (resetWords.includes(text) && session.state !== 'greeting') {
     sessions.set(from, { state: 'greeting' });
     session.state = 'greeting';
+  }
+
+  // FAQ: responder preguntas en cualquier momento del flujo sin trabar el proceso
+  if (!mediaId && BLOCKING_STATES.includes(session.state)) {
+    const faqAnswer = detectarFAQ(text);
+    if (faqAnswer) {
+      await send(from, faqAnswer);
+      const retoma = mensajeRetoma(session.state);
+      if (retoma) await send(from, retoma);
+      return;
+    }
   }
 
   switch (session.state) {
@@ -383,11 +476,16 @@ async function handleIncoming(from, bodyText, mediaId) {
         const list = PACKAGES.map(p => `${p.panels === rec?.panels ? '👉' : '  '} *${p.panels} paneles* — ${mxn(p.price)}`).join('\n');
         await send(from, `☀️ *Paquetes SOLHARM*\n\n${list}\n\n👉 = recomendado para usted`);
       } else {
-        await send(from,
-          `Con gusto le oriento ☀️\n\n` +
-          `💳 *"pagos"* · 🔧 *"instalación"* · ☀️ *"paquetes"* · 📅 *"reunión"*\n\n` +
-          `O escriba *reiniciar* para analizar otro recibo.`
-        );
+        const faqAnswer = detectarFAQ(text);
+        if (faqAnswer) {
+          await send(from, faqAnswer);
+        } else {
+          await send(from,
+            `Con gusto le oriento ☀️\n\n` +
+            `💳 *"pagos"* · 🔧 *"instalación"* · ☀️ *"paquetes"* · 📅 *"reunión"*\n\n` +
+            `O escriba *reiniciar* para analizar otro recibo.`
+          );
+        }
       }
       break;
     }
@@ -467,7 +565,12 @@ await send(NUMERO_PAPA,
   break;
 }
     case 'done': {
-      await send(from, `¡Hola de nuevo! 😊 Escriba *hola* para iniciar una nueva consulta con *SOLHARM Energía Solar* ☀️`);
+      const faqAnswer = detectarFAQ(text);
+      if (faqAnswer) {
+        await send(from, faqAnswer);
+      } else {
+        await send(from, `¡Hola de nuevo! 😊 Escriba *hola* para iniciar una nueva consulta con *SOLHARM Energía Solar* ☀️`);
+      }
       break;
     }
 
