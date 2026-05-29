@@ -256,8 +256,10 @@ async function handleMessage(text, imagePath) {
     const faqAnswer = detectarFAQ(lower);
     if (faqAnswer) {
       await printBot(faqAnswer);
-      const retoma = mensajeRetoma(session.state);
-      if (retoma) await printBot(retoma);
+      return;
+    }
+    if (/\bduda\b|tengo (una )?pregunta|quisiera preguntar|quería (preguntar|consultar)|quiero preguntar|me (puede|podría|pueden) (ayudar|asesorar|orientar|dar información)/i.test(lower)) {
+      await printBot('¡Claro! 😊 Con gusto le ayudo. ¿Cuál es su duda?');
       return;
     }
   }
