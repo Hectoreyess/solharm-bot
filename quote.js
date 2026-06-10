@@ -118,9 +118,20 @@ function buildPdf(doc, {
   [['Nombre:', nombre || ''],
    ['Dirección:', direccion || ''],
    ['Tarifa:', tarifa || '']].forEach(([lbl, val]) => {
-    cell(doc, ML,        y, lblW, RH, lbl, { bold: true, sz: 8 });
-    cell(doc, ML + lblW, y, valW, RH, val, { sz: 8 });
-    y += RH;
+    doc.font('Helvetica').fontSize(8);
+    const valH = doc.heightOfString(String(val), { width: valW - 6 });
+    const rh = Math.max(RH, valH + 4);
+    // Label (always short — vertically centred)
+    fillCell(doc, ML, y, lblW, rh, 'white');
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#000');
+    doc.text(String(lbl), ML + 3, y + (rh - 8 * 1.15) / 2 + 1,
+      { width: lblW - 6, lineBreak: false });
+    // Value (may wrap — top-aligned when multi-line)
+    fillCell(doc, ML + lblW, y, valW, rh, 'white');
+    doc.font('Helvetica').fontSize(8).fillColor('#000');
+    const valTy = valH <= 8 * 1.2 ? y + (rh - 8 * 1.15) / 2 + 1 : y + 3;
+    doc.text(String(val), ML + lblW + 3, valTy, { width: valW - 6 });
+    y += rh;
   });
   const afterInfo = y;
 
@@ -308,9 +319,12 @@ function buildPdf(doc, {
   });
 
   // Right: validez + subministro
-  cell(doc, halfRX, cY2, cotLblW, RH, 'VALIDEZ DE\nCOTIZACIÓN:', { bold: true, sz: 7.5 });
-  cell(doc, halfRX + cotLblW, cY2, cotValW, RH, '7 DIAS', { bold: true, sz: 7.5 });
-  cY2 += RH;
+  doc.font('Helvetica-Bold').fontSize(7.5);
+  const validezH = Math.max(RH, doc.heightOfString('VALIDEZ DE\nCOTIZACIÓN:', { width: cotLblW - 6 }) + 4);
+  fillCell(doc, halfRX, cY2, cotLblW, validezH, 'white');
+  doc.fillColor('#000').text('VALIDEZ DE\nCOTIZACIÓN:', halfRX + 3, cY2 + 3, { width: cotLblW - 6 });
+  cell(doc, halfRX + cotLblW, cY2, cotValW, validezH, '7 DIAS', { bold: true, sz: 7.5 });
+  cY2 += validezH;
 
   const subTxt = 'En caso de no haber existencia de capacidad o marca especificada en esta ' +
     'cotización, Se considerarán equipos y capacidades equivalentes, asegurando el mismo ' +
@@ -318,7 +332,9 @@ function buildPdf(doc, {
   doc.font('Helvetica').fontSize(7);
   const subH = Math.max(RH * 4,
     doc.heightOfString(subTxt, { width: cotValW - 6 }) + 6);
-  cell(doc, halfRX, cY2, cotLblW, subH, 'SUBMINISTRO\nDE EQUIPOS:', { bold: true, sz: 7.5 });
+  fillCell(doc, halfRX, cY2, cotLblW, subH, 'white');
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#000');
+  doc.text('SUBMINISTRO\nDE EQUIPOS:', halfRX + 3, cY2 + 3, { width: cotLblW - 6 });
   multiCell(doc, halfRX + cotLblW, cY2, cotValW, subH, subTxt, { sz: 7 });
   cY2 += subH;
 
