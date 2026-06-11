@@ -198,9 +198,9 @@ function buildPdf(doc, {
     { label: 'DIARIO' },
     { value: dailyKwh.toFixed(2) },
     { label: 'PRECIO ESTIMADO' },
-    { value: '' },
+    { value: '2.6267' },
     { label: 'PRECIO ANUAL' },
-    { value: '' },
+    { value: mxn(annualKwh * 2.6267) },
   ];
   while (promedioRows.length < periodos.length) promedioRows.push({ value: '' });
 
