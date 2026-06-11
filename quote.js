@@ -93,10 +93,10 @@ function buildPdf(doc, {
   panels, price
 }) {
   // ── Derived values ────────────────────────────────────────────────────────
-  const totalKwh  = periodos.reduce((s, p) => s + Number(p.kwh), 0);
-  const annualKwh = tipo === 'bimestral'
-    ? totalKwh * (6 / periodos.length)
-    : totalKwh * (12 / periodos.length);
+  const yearSize      = tipo === 'bimestral' ? 6 : 12;
+  const recentPeriodos = periodos.length > yearSize ? periodos.slice(-yearSize) : periodos;
+  const totalKwh  = recentPeriodos.reduce((s, p) => s + Number(p.kwh), 0);
+  const annualKwh = totalKwh * (yearSize / recentPeriodos.length);
 
   const monthlyKwh = annualKwh / 12;
   const dailyKwh   = annualKwh / 365;

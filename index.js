@@ -48,6 +48,12 @@ function mxn(amount) {
   return `$${amount.toLocaleString('es-MX')} MXN`;
 }
 
+function calcAvgKwh(periodos, tipo) {
+  const yearSize = tipo === 'bimestral' ? 6 : 12;
+  const relevant = periodos.length > yearSize ? periodos.slice(-yearSize) : periodos;
+  return relevant.reduce((s, p) => s + Number(p.kwh), 0) / relevant.length;
+}
+
 function recommendPackage(avgKwh, tipo) {
   const dailyKwh = tipo === 'bimestral' ? (avgKwh * 6) / 365 : avgKwh / 30.44;
   const rawPanels = dailyKwh / PANEL_KWH_DAY;
@@ -316,7 +322,8 @@ async function handleIncoming(from, bodyText, mediaId) {
         }
 
         session.billData = data;
-        const pkg = recommendPackage(data.promedio_kwh, data.tipo);
+        const avgKwh = calcAvgKwh(data.periodos, data.tipo);
+        const pkg = recommendPackage(avgKwh, data.tipo);
         session.recommendation = pkg;
 
         const tipoLabel  = data.tipo === 'bimestral' ? 'bimestre' : 'mes';
@@ -327,7 +334,7 @@ async function handleIncoming(from, bodyText, mediaId) {
         await send(from,
           `✅ *Análisis completado*\n\n` +
           `📋 *Historial de consumo (${data.tipo}):*\n${historial}\n\n` +
-          `📊 Promedio: *${Math.round(data.promedio_kwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
+          `📊 Promedio: *${Math.round(avgKwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `☀️ *PROPUESTA SOLHARM PARA USTED*\n\n` +
           `🔆 *Paquete de ${pkg.panels} paneles solares*\n` +
