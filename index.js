@@ -423,12 +423,13 @@ async function handleIncoming(from, bodyText, mediaId) {
           const filepath  = path.join(QUOTES_DIR, filename);
           fs.writeFileSync(filepath, pdfBuffer);
 
+          const debugPaneles = `\n\nDEBUG paneles: ${rec.rawPanels.toFixed(2)} → ${rec.panels}`;
           const publicUrl = process.env.PUBLIC_URL;
           if (publicUrl) {
             const pdfUrl = `${publicUrl.replace(/\/$/, '')}/quotes/${filename}`;
-            await send(from, `✅ *¡Su cotización está lista!* 📄\n\n${pdfUrl}\n\n_Válida por 7 días._`);
+            await send(from, `✅ *¡Su cotización está lista!* 📄\n\n${pdfUrl}\n\n_Válida por 7 días._${debugPaneles}`);
           } else {
-            await send(from, `✅ *¡Su cotización ha sido generada!*\n\nUn asesor se la hará llegar a la brevedad. 📄`);
+            await send(from, `✅ *¡Su cotización ha sido generada!*\n\nUn asesor se la hará llegar a la brevedad. 📄${debugPaneles}`);
           }
         } catch (err) {
           console.error('[PDF error]', err.message);
