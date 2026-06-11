@@ -210,6 +210,8 @@ function buildPdf(doc, {
     const p = periodos[i];
     fillCell(doc, ML, lY, col1, RH, 'white');
     if (p) {
+      doc.font('Helvetica').fontSize(6).fillColor('#555');
+      doc.text(p.periodo, ML + 3, lY + 2, { width: col1 - 36, lineBreak: false });
       doc.font('Helvetica-Bold').fontSize(9).fillColor('#000');
       doc.text(Number(p.kwh).toLocaleString('es-MX'), ML + 3, lY + (RH - 9 * 1.15) / 2 + 1,
         { width: col1 - 6, align: 'right', lineBreak: false });
