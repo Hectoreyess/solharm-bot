@@ -11,7 +11,7 @@ const PANEL_M2      = 2.584;    // 2279 × 1134 mm per panel → m²
 const GREEN      = '#2d6b1f';   // verde oscuro: barra ANÁLISIS, OBJETIVO, PROPUESTA, COTIZACIÓN, PRECIO, PAGOS, labels ANUAL/MENSUAL/DIARIO
 const GREEN2     = '#4a8c2a';   // verde medio: sub-header "Sistema:"
 const G_LIGHT    = '#b8d89b';   // verde claro: fila COSTO TOTAL DE CONTADO
-const YELLOW     = '#c8d000';   // amarillo: headers CONSUMO DE KWH / CONSUMO PROMEDIO únicamente
+const YELLOW     = '#FFFF00';   // amarillo brillante: headers CONSUMO DE KWH / CONSUMO PROMEDIO
 const BORDER     = '#aaaaaa';   // gris: bordes de celdas
 
 // Page geometry (US Letter)
@@ -173,6 +173,7 @@ function buildPdf(doc, {
   const col1 = 110;   // period label + kWh number
   const col2 = leftW - col1;  // 78
 
+  const blockStartY = y;
   let lY = y, rY = y;
 
   // ── Column headers (yellow, 2-line — matches reference) ──────────────────
@@ -182,14 +183,13 @@ function buildPdf(doc, {
     [ML + col1, col2, 'CONSUMO\nPROMEDIO'],
   ]) {
     doc.rect(x, lY, w, LCH).fillColor(YELLOW).fill();
-    doc.rect(x, lY, w, LCH).strokeColor(BORDER).lineWidth(0.5).stroke();
+    doc.rect(x, lY, w, LCH).strokeColor('#000').lineWidth(1.5).stroke();
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#000');
     doc.text(txt, x + 3, lY + 4, { width: w - 6, align: 'center' });
   }
   lY += LCH;
 
-  // ── CONSUMO PROMEDIO column: alternating label (yellow) / value rows ─────
-  // Fills col2 aligned with period rows — exactly like the reference image.
+  // ── CONSUMO PROMEDIO column: alternating label / value rows ─────────────
   const promedioRows = [
     { label: 'ANUAL' },
     { value: Math.round(annualKwh).toLocaleString('es-MX') },
@@ -197,28 +197,32 @@ function buildPdf(doc, {
     { value: monthlyKwh.toFixed(1) },
     { label: 'DIARIO' },
     { value: dailyKwh.toFixed(2) },
+    { label: 'PRECIO ESTIMADO' },
+    { value: '' },
+    { label: 'PRECIO ANUAL' },
+    { value: '' },
   ];
-  // Pad with blanks if more periods than summary items
   while (promedioRows.length < periodos.length) promedioRows.push({ value: '' });
 
   // ── Period rows ───────────────────────────────────────────────────────────
-  // Columna izquierda: periodo pequeño arriba + kWh grande alineado a la derecha
-  periodos.forEach((p, i) => {
+  const totalRows = Math.max(promedioRows.length, periodos.length);
+  for (let i = 0; i < totalRows; i++) {
+    const p = periodos[i];
     fillCell(doc, ML, lY, col1, RH, 'white');
-    doc.font('Helvetica').fontSize(6).fillColor('#555');
-    doc.text(p.periodo, ML + 3, lY + 2, { width: col1 - 36, lineBreak: false });
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000');
-    doc.text(Number(p.kwh).toLocaleString('es-MX'), ML + 3, lY + (RH - 9 * 1.15) / 2 + 1,
-      { width: col1 - 6, align: 'right', lineBreak: false });
+    if (p) {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#000');
+      doc.text(Number(p.kwh).toLocaleString('es-MX'), ML + 3, lY + (RH - 9 * 1.15) / 2 + 1,
+        { width: col1 - 6, align: 'right', lineBreak: false });
+    }
 
     const pd = promedioRows[i] || { value: '' };
     if (pd.label) {
-      cell(doc, ML + col1, lY, col2, RH, pd.label, { bold: true, bg: GREEN, color: 'white', sz: 7.5, align: 'center' });
+      cell(doc, ML + col1, lY, col2, RH, pd.label, { bold: true, bg: '#e0e0e0', color: '#000', sz: 7.5, align: 'center' });
     } else {
       cell(doc, ML + col1, lY, col2, RH, pd.value || '', { align: 'right', sz: 8 });
     }
     lY += RH;
-  });
+  }
 
   // ── Right: OBJETIVO ────────────────────────────────────────────────────────
   hdr(doc, rightX, rY, rightW, HDR, 'OBJETIVO');
@@ -277,6 +281,10 @@ function buildPdf(doc, {
   cell(doc, rightX,            rY, numW * 2,       RH, 'ÁREA:', { bold: true, sz: 7.5 });
   cell(doc, rightX + numW * 2, rY, descW - numW,   RH, `${area} M2`, { bold: true, sz: 7.5 });
   rY += RH;
+
+  // Thick outer borders around consumo block (left) and objetivo/propuesta block (right)
+  doc.rect(ML, blockStartY, leftW, lY - blockStartY).strokeColor('#000').lineWidth(1.5).stroke();
+  doc.rect(rightX, blockStartY, rightW, rY - blockStartY).strokeColor('#000').lineWidth(1.5).stroke();
 
   y = Math.max(lY, rY) + 8;
 
