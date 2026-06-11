@@ -5,13 +5,14 @@ const fs          = require('fs');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_KWH_DAY = 2.725;
+const PANEL_M2      = 2.584;    // 2279 × 1134 mm per panel → m²
 
-// Reference image colours
-const GREEN      = '#3a7d1e';   // OBJETIVO / PROPUESTA / COTIZACIÓN headers
-const GREEN2     = '#4d9628';   // "Sistema:" sub-header
-const G_LIGHT    = '#b8d89b';   // COSTO TOTAL row background
-const YELLOW     = '#c8d000';   // left-table headers + summary labels + main title
-const BORDER     = '#aaaaaa';   // all cell borders
+// Colores del diseño SOLHARM
+const GREEN      = '#2d6b1f';   // verde oscuro: barra ANÁLISIS, OBJETIVO, PROPUESTA, COTIZACIÓN, PRECIO, PAGOS, labels ANUAL/MENSUAL/DIARIO
+const GREEN2     = '#4a8c2a';   // verde medio: sub-header "Sistema:"
+const G_LIGHT    = '#b8d89b';   // verde claro: fila COSTO TOTAL DE CONTADO
+const YELLOW     = '#c8d000';   // amarillo: headers CONSUMO DE KWH / CONSUMO PROMEDIO únicamente
+const BORDER     = '#aaaaaa';   // gris: bordes de celdas
 
 // Page geometry (US Letter)
 const PW = 612, PH = 792;
@@ -165,12 +166,12 @@ function buildPdf(doc, {
   y = afterInfo + 5;
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MAIN TITLE  (yellow bg, black text — matches reference)
+  // MAIN TITLE  (verde oscuro, texto blanco — diseño SOLHARM)
   // ══════════════════════════════════════════════════════════════════════════
   const periodLabel = tipo === 'bimestral' ? `ULTIMOS ${periodos.length} BIMESTRES` : 'ULTIMOS 12 MESES';
   hdr(doc, ML, y, CW, HDR_BIG,
     `ANÁLISIS DE LA FACTURACIÓN DE ENERGÍA - ${periodLabel}`,
-    { sz: 10, bg: YELLOW, color: '#000' });
+    { sz: 10, bg: GREEN, color: 'white' });
   y += HDR_BIG + 3;
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -216,12 +217,18 @@ function buildPdf(doc, {
   while (promedioRows.length < periodos.length) promedioRows.push({ value: '' });
 
   // ── Period rows ───────────────────────────────────────────────────────────
+  // Columna izquierda: periodo pequeño arriba + kWh grande alineado a la derecha
   periodos.forEach((p, i) => {
-    const kwhLabel = `${p.periodo}  ${Number(p.kwh).toLocaleString('es-MX')}`;
-    cell(doc, ML, lY, col1, RH, kwhLabel, { sz: 7.5 });
+    fillCell(doc, ML, lY, col1, RH, 'white');
+    doc.font('Helvetica').fontSize(6).fillColor('#555');
+    doc.text(p.periodo, ML + 3, lY + 2, { width: col1 - 36, lineBreak: false });
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000');
+    doc.text(Number(p.kwh).toLocaleString('es-MX'), ML + 3, lY + (RH - 9 * 1.15) / 2 + 1,
+      { width: col1 - 6, align: 'right', lineBreak: false });
+
     const pd = promedioRows[i] || { value: '' };
     if (pd.label) {
-      cell(doc, ML + col1, lY, col2, RH, pd.label, { bold: true, bg: YELLOW, color: '#000', sz: 7.5, align: 'center' });
+      cell(doc, ML + col1, lY, col2, RH, pd.label, { bold: true, bg: GREEN, color: 'white', sz: 7.5, align: 'center' });
     } else {
       cell(doc, ML + col1, lY, col2, RH, pd.value || '', { align: 'right', sz: 8 });
     }
@@ -281,10 +288,10 @@ function buildPdf(doc, {
     rY += rowH;
   });
 
-  // ÁREA row: only included when area is known (currently omitted per user request)
-  // cell(doc, rightX, rY, numW * 2, RH, 'ÁREA:', { bold: true });
-  // cell(doc, rightX + numW * 2, rY, descW - numW, RH, `${area} M2`, { bold: true });
-  // rY += RH;
+  const area = Math.round(panels * PANEL_M2);
+  cell(doc, rightX,            rY, numW * 2,       RH, 'ÁREA:', { bold: true, sz: 7.5 });
+  cell(doc, rightX + numW * 2, rY, descW - numW,   RH, `${area} M2`, { bold: true, sz: 7.5 });
+  rY += RH;
 
   y = Math.max(lY, rY) + 8;
 
