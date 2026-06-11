@@ -145,7 +145,7 @@ function buildPdf(doc, {
 
   if (fs.existsSync(logoFile)) {
     // fit mantiene la proporción original; align:'right' lo pega al borde derecho
-    doc.image(logoFile, logoX, MT, { fit: [logoAreaW, 55], align: 'right', valign: 'top' });
+    doc.image(logoFile, logoX, MT, { fit: [logoAreaW, 40], align: 'right', valign: 'top' });
   }
 
   y = afterInfo + 5;
