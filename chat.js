@@ -28,7 +28,8 @@ function mxn(n) { return `$${n.toLocaleString('es-MX')} MXN`; }
 function recommendPackage(avgKwh, tipo) {
   const dailyKwh = tipo === 'bimestral' ? (avgKwh * 6) / 365 : avgKwh / 30.44;
   const rawPanels = dailyKwh / PANEL_KWH_DAY;
-  const pkg = PACKAGES.find(p => p.panels > rawPanels) || PACKAGES[PACKAGES.length - 1];
+  const panels = Math.ceil((rawPanels + 0.3) / 2) * 2;
+  const pkg = PACKAGES.find(p => p.panels >= panels) || PACKAGES[PACKAGES.length - 1];
   return { ...pkg, rawPanels, dailyKwh };
 }
 
