@@ -136,31 +136,16 @@ function buildPdf(doc, {
   });
   const afterInfo = y;
 
-  // Logo
-  const logoX = ML + infoW + 10;
-  const logoPath = process.env.SOLHARM_LOGO_PATH
-    ? path.resolve(process.env.SOLHARM_LOGO_PATH) : null;
+  // Logo — imagen PNG con fondo transparente (incluye "SÓLO POR TI")
+  const logoX    = ML + infoW + 10;
+  const logoAreaW = PW - MR - logoX;   // ancho disponible ≈ 287 pt
+  const logoFile = process.env.SOLHARM_LOGO_PATH
+    ? path.resolve(process.env.SOLHARM_LOGO_PATH)
+    : path.join(__dirname, 'logo_solharm_recortado.png');
 
-  if (logoPath && fs.existsSync(logoPath)) {
-    doc.image(logoPath, logoX, MT, { fit: [PW - MR - logoX, 55] });
-  } else {
-    const fz = 32;
-    doc.font('Helvetica-Bold').fontSize(fz);
-    const sW = doc.widthOfString('S');
-    const oW = doc.widthOfString('O');
-    const cr = oW * 0.46;
-    const cx = logoX + sW + oW * 0.5;
-    const cy = MT + fz * 0.46;
-    doc.fillColor(GREEN).text('S', logoX, MT, { lineBreak: false });
-    doc.save();
-    doc.circle(cx, cy, cr).fillColor('#d4aa00').fill();
-    doc.circle(cx, cy, cr * 0.52).fillColor('white').fill();
-    doc.restore();
-    doc.font('Helvetica-Bold').fontSize(fz).fillColor(GREEN);
-    doc.text('LHARM', logoX + sW + oW, MT, { lineBreak: false });
-    doc.font('Helvetica').fontSize(8).fillColor('#555');
-    doc.text('SÓLO POR TI', logoX, MT + fz + 3,
-      { width: PW - MR - logoX, align: 'right', lineBreak: false });
+  if (fs.existsSync(logoFile)) {
+    // fit mantiene la proporción original; align:'right' lo pega al borde derecho
+    doc.image(logoFile, logoX, MT, { fit: [logoAreaW, 55], align: 'right', valign: 'top' });
   }
 
   y = afterInfo + 5;
