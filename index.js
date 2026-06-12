@@ -327,21 +327,16 @@ async function handleIncoming(from, bodyText, mediaId) {
         const { avg: avgKwh, relevant: relevantPeriodos } = calcAvgKwh(data.periodos, data.tipo);
         const pkg = recommendPackage(avgKwh, data.tipo);
         session.recommendation = pkg;
-        session.relevantPeriodos = relevantPeriodos;
 
         const tipoLabel  = data.tipo === 'bimestral' ? 'bimestre' : 'mes';
         const days       = data.tipo === 'bimestral' ? 61 : 30.44;
         const produccion = Math.round(pkg.panels * PANEL_KWH_DAY * days);
         const historial  = data.periodos.map(p => `   • ${p.periodo}: *${Number(p.kwh).toLocaleString('es-MX')} kWh*`).join('\n');
-        const debugConsumo = `DEBUG periodos usados (${relevantPeriodos.length}): ` +
-          relevantPeriodos.map(p => `${p.periodo}:${p.kwh}`).join(', ') +
-          ` → anual=${relevantPeriodos.reduce((s,p)=>s+Number(p.kwh),0)}`;
 
         await send(from,
           `✅ *Análisis completado*\n\n` +
           `📋 *Historial de consumo (${data.tipo}):*\n${historial}\n\n` +
           `📊 Promedio: *${Math.round(avgKwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
-          `${debugConsumo}\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `☀️ *PROPUESTA SOLHARM PARA USTED*\n\n` +
           `🔆 *Paquete de ${pkg.panels} paneles solares*\n` +
@@ -437,13 +432,12 @@ async function handleIncoming(from, bodyText, mediaId) {
           const filepath  = path.join(QUOTES_DIR, filename);
           fs.writeFileSync(filepath, pdfBuffer);
 
-          const debugPaneles = `\n\nDEBUG paneles: ${rec.rawPanels.toFixed(2)} → ${rec.panels}`;
           const publicUrl = process.env.PUBLIC_URL;
           if (publicUrl) {
             const pdfUrl = `${publicUrl.replace(/\/$/, '')}/quotes/${filename}`;
-            await send(from, `✅ *¡Su cotización está lista!* 📄\n\n${pdfUrl}\n\n_Válida por 7 días._${debugPaneles}`);
+            await send(from, `✅ *¡Su cotización está lista!* 📄\n\n${pdfUrl}\n\n_Válida por 7 días._`);
           } else {
-            await send(from, `✅ *¡Su cotización ha sido generada!*\n\nUn asesor se la hará llegar a la brevedad. 📄${debugPaneles}`);
+            await send(from, `✅ *¡Su cotización ha sido generada!*\n\nUn asesor se la hará llegar a la brevedad. 📄`);
           }
         } catch (err) {
           console.error('[PDF error]', err.message);

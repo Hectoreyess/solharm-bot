@@ -347,15 +347,11 @@ async function handleMessage(text, imagePath) {
         const historial  = data.periodos
           .map(p => `   • ${p.periodo}: *${Number(p.kwh).toLocaleString('es-MX')} kWh*`)
           .join('\n');
-        const debugConsumo = `DEBUG periodos usados (${relevantPeriodos.length}): ` +
-          relevantPeriodos.map(p => `${p.periodo}:${p.kwh}`).join(', ') +
-          ` → anual=${relevantPeriodos.reduce((s,p)=>s+Number(p.kwh),0)}`;
 
         await printBot(
           `✅ *Análisis completado*\n\n` +
           `📋 *Historial de consumo (${data.tipo}):*\n${historial}\n\n` +
           `📊 Promedio: *${Math.round(avgKwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
-          `${debugConsumo}\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `☀️ *PROPUESTA SOLHARM PARA USTED*\n\n` +
           `🔆 *Paquete de ${pkg.panels} paneles solares*\n` +
