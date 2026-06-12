@@ -28,7 +28,8 @@ function mxn(n) { return `$${n.toLocaleString('es-MX')} MXN`; }
 function calcAvgKwh(periodos, tipo) {
   const yearSize = tipo === 'bimestral' ? 6 : 12;
   const relevant = periodos.length > yearSize ? periodos.slice(-yearSize) : periodos;
-  return relevant.reduce((s, p) => s + Number(p.kwh), 0) / relevant.length;
+  const avg = relevant.reduce((s, p) => s + Number(p.kwh), 0) / relevant.length;
+  return { avg, relevant };
 }
 
 function recommendPackage(avgKwh, tipo) {
@@ -336,7 +337,7 @@ async function handleMessage(text, imagePath) {
         }
 
         session.billData = data;
-        const avgKwh = calcAvgKwh(data.periodos, data.tipo);
+        const { avg: avgKwh, relevant: relevantPeriodos } = calcAvgKwh(data.periodos, data.tipo);
         const pkg = recommendPackage(avgKwh, data.tipo);
         session.recommendation = pkg;
 
@@ -346,11 +347,15 @@ async function handleMessage(text, imagePath) {
         const historial  = data.periodos
           .map(p => `   • ${p.periodo}: *${Number(p.kwh).toLocaleString('es-MX')} kWh*`)
           .join('\n');
+        const debugConsumo = `DEBUG periodos usados (${relevantPeriodos.length}): ` +
+          relevantPeriodos.map(p => `${p.periodo}:${p.kwh}`).join(', ') +
+          ` → anual=${relevantPeriodos.reduce((s,p)=>s+Number(p.kwh),0)}`;
 
         await printBot(
           `✅ *Análisis completado*\n\n` +
           `📋 *Historial de consumo (${data.tipo}):*\n${historial}\n\n` +
           `📊 Promedio: *${Math.round(avgKwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
+          `${debugConsumo}\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `☀️ *PROPUESTA SOLHARM PARA USTED*\n\n` +
           `🔆 *Paquete de ${pkg.panels} paneles solares*\n` +

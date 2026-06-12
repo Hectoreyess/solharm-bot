@@ -51,7 +51,8 @@ function mxn(amount) {
 function calcAvgKwh(periodos, tipo) {
   const yearSize = tipo === 'bimestral' ? 6 : 12;
   const relevant = periodos.length > yearSize ? periodos.slice(-yearSize) : periodos;
-  return relevant.reduce((s, p) => s + Number(p.kwh), 0) / relevant.length;
+  const avg = relevant.reduce((s, p) => s + Number(p.kwh), 0) / relevant.length;
+  return { avg, relevant };
 }
 
 function recommendPackage(avgKwh, tipo) {
@@ -121,6 +122,7 @@ const BILL_PROMPT =
   '- Si ves 6 periodos que cubren un año saltando 2 meses, es SIEMPRE bimestral.\n\n' +
   'EXTRACCIÓN:\n' +
   '- Extrae el kWh de CADA periodo visible en el historial.\n' +
+  '- Ordena el arreglo "periodos" de MÁS ANTIGUO a MÁS RECIENTE (índice 0 = el más viejo).\n' +
   '- Extrae la TARIFA CFE (ejemplos: "1D", "DAC", "2", "3").\n' +
   '- Extrae el NOMBRE del titular tal como aparece en el recibo.\n' +
   '- Extrae la DIRECCIÓN o colonia/municipio del titular.\n' +
@@ -322,19 +324,24 @@ async function handleIncoming(from, bodyText, mediaId) {
         }
 
         session.billData = data;
-        const avgKwh = calcAvgKwh(data.periodos, data.tipo);
+        const { avg: avgKwh, relevant: relevantPeriodos } = calcAvgKwh(data.periodos, data.tipo);
         const pkg = recommendPackage(avgKwh, data.tipo);
         session.recommendation = pkg;
+        session.relevantPeriodos = relevantPeriodos;
 
         const tipoLabel  = data.tipo === 'bimestral' ? 'bimestre' : 'mes';
         const days       = data.tipo === 'bimestral' ? 61 : 30.44;
         const produccion = Math.round(pkg.panels * PANEL_KWH_DAY * days);
         const historial  = data.periodos.map(p => `   • ${p.periodo}: *${Number(p.kwh).toLocaleString('es-MX')} kWh*`).join('\n');
+        const debugConsumo = `DEBUG periodos usados (${relevantPeriodos.length}): ` +
+          relevantPeriodos.map(p => `${p.periodo}:${p.kwh}`).join(', ') +
+          ` → anual=${relevantPeriodos.reduce((s,p)=>s+Number(p.kwh),0)}`;
 
         await send(from,
           `✅ *Análisis completado*\n\n` +
           `📋 *Historial de consumo (${data.tipo}):*\n${historial}\n\n` +
           `📊 Promedio: *${Math.round(avgKwh).toLocaleString('es-MX')} kWh* por ${tipoLabel}\n\n` +
+          `${debugConsumo}\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `☀️ *PROPUESTA SOLHARM PARA USTED*\n\n` +
           `🔆 *Paquete de ${pkg.panels} paneles solares*\n` +
