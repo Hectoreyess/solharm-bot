@@ -577,7 +577,7 @@ async function handleIncoming(from, bodyText, mediaId) {
       // ── 3. Notificación al dueño (independiente de todo lo anterior) ──────
       if (citaAgendada) {
         try {
-          const NUMERO_PAPA = '528666388384';
+          const NUMERO_PAPA = '528661355749';
           await axios.post(
             `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
             {
