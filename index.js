@@ -507,6 +507,7 @@ async function handleIncoming(from, bodyText, mediaId) {
 
     case 'scheduling': {
       const fechaIntento = parseDateTime(bodyText || '');
+      console.log('[SCHEDULING] entré al case, agendando cita');
 
       if (!fechaIntento) {
         await send(from,
@@ -575,6 +576,7 @@ async function handleIncoming(from, bodyText, mediaId) {
       }
 
       // ── 3. Notificación al dueño (independiente de todo lo anterior) ──────
+      console.log('[SCHEDULING] citaAgendada =', citaAgendada);
       if (citaAgendada) {
         try {
           const NUMERO_PAPA = '528661355749';
