@@ -506,79 +506,106 @@ async function handleIncoming(from, bodyText, mediaId) {
     }
 
     case 'scheduling': {
-  const fechaIntento = parseDateTime(bodyText || '');
-  
-  if (!fechaIntento) {
-    await send(from,
-      `No entendí bien la fecha y hora 😊 ¿Podría indicarme algo como:\n\n` +
-      `"martes a las 3pm"\n"mañana a las 10am"\n"viernes 11:30am"`
-    );
-    break;
-  }
+      const fechaIntento = parseDateTime(bodyText || '');
 
-  if (!esDentroDeHorario(fechaIntento)) {
-    await send(from,
-      `Lo siento, ese horario está fuera de nuestro horario de atención 😊\n\n` +
-      `📅 *Horario SOLHARM:*\n` +
-      `Lunes a viernes: 9:00am — 7:00pm\n` +
-      `Sábados: 9:00am — 1:30pm\n` +
-      `Domingos: Cerrado\n\n` +
-      `¿Qué otro horario le viene bien?`
-    );
-    break;
-  }
+      if (!fechaIntento) {
+        await send(from,
+          `No entendí bien la fecha y hora 😊 ¿Podría indicarme algo como:\n\n` +
+          `"martes a las 3pm"\n"mañana a las 10am"\n"viernes 11:30am"`
+        );
+        break;
+      }
 
-  try {
-    const disponible = await verificarDisponibilidad(fechaIntento);
-    
-    if (!disponible) {
-      const siguiente = new Date(fechaIntento.getTime() + 60 * 60 * 1000);
-      const anterior = new Date(fechaIntento.getTime() - 60 * 60 * 1000);
-      const fmt = (d) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-      await send(from,
-        `Lo siento, ese horario ya está reservado 😊\n\n` +
-        `¿Le parece bien a las *${fmt(anterior)}* o a las *${fmt(siguiente)}*?`
-      );
+      if (!esDentroDeHorario(fechaIntento)) {
+        await send(from,
+          `Lo siento, ese horario está fuera de nuestro horario de atención 😊\n\n` +
+          `📅 *Horario SOLHARM:*\n` +
+          `Lunes a viernes: 9:00am — 7:00pm\n` +
+          `Sábados: 9:00am — 1:30pm\n` +
+          `Domingos: Cerrado\n\n` +
+          `¿Qué otro horario le viene bien?`
+        );
+        break;
+      }
+
+      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+      const diaNotif   = dias[fechaIntento.getDay()];
+      const fechaNotif = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+      const horaNotif  = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // ── 1. Google Calendar (solo verificar + agendar) ─────────────────────
+      let citaAgendada = false;
+
+      try {
+        const disponible = await verificarDisponibilidad(fechaIntento);
+
+        if (!disponible) {
+          const siguiente = new Date(fechaIntento.getTime() + 60 * 60 * 1000);
+          const anterior  = new Date(fechaIntento.getTime() - 60 * 60 * 1000);
+          const fmtAlt    = (d) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+          await send(from,
+            `Lo siento, ese horario ya está reservado 😊\n\n` +
+            `¿Le parece bien a las *${fmtAlt(anterior)}* o a las *${fmtAlt(siguiente)}*?`
+          );
+          break;
+        }
+
+        await agendarCita(fechaIntento, session.clientName, from);
+        citaAgendada = true;
+
+      } catch (err) {
+        console.error('[Calendar error]', err.message, err.response?.data);
+        await send(from,
+          `✅ *¡Su cita ha quedado registrada!*\n\n` +
+          `Un asesor confirmará los detalles a la brevedad 🤝`
+        );
+        session.state = 'done';
+      }
+
+      // ── 2. Confirmación al cliente (fuera del try del calendario) ─────────
+      if (citaAgendada) {
+        await send(from,
+          `✅ *¡Cita agendada exitosamente!*\n\n` +
+          `📅 *${diaNotif} ${fechaNotif} a las ${horaNotif}*\n` +
+          `👤 ${session.clientName}\n\n` +
+          `Le esperamos en nuestras oficinas de *SOLHARM* (Col. Tecnológico) 🤝☀️\n\n` +
+          `¡Gracias por su confianza!`
+        );
+        session.state = 'done';
+      }
+
+      // ── 3. Notificación al dueño (independiente de todo lo anterior) ──────
+      if (citaAgendada) {
+        try {
+          const NUMERO_PAPA = '528666388384';
+          await axios.post(
+            `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+            {
+              messaging_product: 'whatsapp',
+              to: NUMERO_PAPA,
+              type: 'template',
+              template: {
+                name: 'aviso_nueva_cita',
+                language: { code: 'es_MX' },
+                components: [{
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: `${diaNotif} ${fechaNotif}` },
+                    { type: 'text', text: horaNotif },
+                    { type: 'text', text: session.clientName },
+                  ],
+                }],
+              },
+            },
+            { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+          );
+        } catch (err) {
+          console.error('[Notif dueño error]', err.message, err.response?.data);
+        }
+      }
+
       break;
     }
-
-    await agendarCita(fechaIntento, session.clientName, from);
-    
-    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-    const fmt = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const dia = dias[fechaIntento.getDay()];
-    const fecha = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-   
-// Notificar al número de tu papá
-const NUMERO_PAPA = '528666388384';
-const diaNotif = dias[fechaIntento.getDay()];
-const fechaNotif = fechaIntento.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-const horaNotif = fechaIntento.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-await send(NUMERO_PAPA,
-  `📅 *Nueva cita agendada — SOLHARM*\n\n` +
-  `👤 Cliente: ${session.clientName}\n` +
-  `📞 Teléfono: ${from}\n` +
-  `🕐 ${diaNotif} ${fechaNotif} a las ${horaNotif}`
-);
-    await send(from,
-      `✅ *¡Cita agendada exitosamente!*\n\n` +
-      `📅 *${dia} ${fecha} a las ${fmt}*\n` +
-      `👤 ${session.clientName}\n\n` +
-      `Le esperamos en nuestras oficinas de *SOLHARM* (Col. Tecnológico) 🤝☀️\n\n` +
-      `¡Gracias por su confianza!`
-    );
-    session.state = 'done';
-
-  } catch (err) {
-    console.error('[Calendar error]', err.message);
-    await send(from,
-      `✅ *¡Su cita ha quedado registrada!*\n\n` +
-      `Un asesor confirmará los detalles a la brevedad 🤝`
-    );
-    session.state = 'done';
-  }
-  break;
-}
     case 'done': {
       const faqAnswer = detectarFAQ(text);
       if (faqAnswer) {
