@@ -601,6 +601,7 @@ async function handleIncoming(from, bodyText, mediaId) {
             },
             { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
           );
+          console.log('[Notif dueño] plantilla enviada OK');
         } catch (err) {
           console.error('[Notif dueño error]', err.message, err.response?.data);
         }
