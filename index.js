@@ -232,17 +232,18 @@ function detectarFAQ(text) {
   return null;
 }
 
-const BLOCKING_STATES = ['waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling'];
+const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling'];
 
 function mensajeRetoma(state) {
   switch (state) {
-    case 'waiting_front':     return '📸 Cuando guste, comparta la foto del *frente* de su recibo de CFE para continuar 😊';
-    case 'waiting_back':      return '📸 Cuando guste, también necesito la foto del *reverso* del recibo para completar el análisis 😊';
-    case 'asking_growth':     return '¿Tiene planeado agregar aparatos eléctricos en el futuro (minisplits, calentador, etc.)? Solo responda *Sí* o *No* 😊';
-    case 'waiting_nombre':    return '¿Me podría decir su *nombre completo* para generarle la cotización? 😊';
-    case 'waiting_direccion': return '¿Me podría indicar su *dirección o municipio*? 😊';
-    case 'scheduling':        return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
-    default:                  return null;
+    case 'menu_nombre_cita':    return '¿Me podría compartir su nombre para agendar la cita? 😊';
+    case 'waiting_front':       return '📸 Cuando guste, comparta la foto del *frente* de su recibo de CFE para continuar 😊';
+    case 'waiting_back':        return '📸 Cuando guste, también necesito la foto del *reverso* del recibo para completar el análisis 😊';
+    case 'asking_growth':       return '¿Tiene planeado agregar aparatos eléctricos en el futuro (minisplits, calentador, etc.)? Solo responda *Sí* o *No* 😊';
+    case 'waiting_nombre':      return '¿Me podría decir su *nombre completo* para generarle la cotización? 😊';
+    case 'waiting_direccion':   return '¿Me podría indicar su *dirección o municipio*? 😊';
+    case 'scheduling':          return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
+    default:                    return null;
   }
 }
 
@@ -279,12 +280,62 @@ async function handleIncoming(from, bodyText, mediaId) {
     case 'greeting': {
       await send(from,
         `¡Hola! 👋 Bienvenido/a a *SOLHARM Energía Solar* ☀️\n\n` +
-        `Es un gusto atenderle. Somos especialistas en sistemas fotovoltaicos y con mucho gusto le ayudamos a encontrar el sistema ideal para su hogar o negocio.\n\n` +
-        `Para prepararle una cotización *personalizada y completamente gratuita*, nos ayudaría mucho analizar su recibo de luz de CFE.\n\n` +
-        `📸 *Paso 1 de 2 — Foto del FRENTE del recibo*\n` +
-        `¿Podría compartirme una foto de la parte frontal de su recibo? 😊`
+        `Con gusto le ayudamos a ahorrar en su recibo de luz.\n` +
+        `¿Qué le gustaría hacer? Responda con el número:\n\n` +
+        `1️⃣ Cotización gratis (analizamos su recibo de luz) 📸\n\n` +
+        `_Después también puede agendar una cita, hablar con un asesor o resolver dudas._\n\n` +
+        `2️⃣ Agendar una visita en nuestras oficinas 📅\n\n` +
+        `_Después también puede cotizar, hablar con un asesor o resolver dudas._\n\n` +
+        `3️⃣ Hablar con un asesor de ventas 💬\n` +
+        `4️⃣ Tengo una duda ❓`
       );
-      session.state = 'waiting_front';
+      session.state = 'menu';
+      break;
+    }
+
+    case 'menu': {
+      if (/^1/.test(text)) {
+        await send(from,
+          `📸 *Paso 1 de 2 — Foto del FRENTE del recibo*\n\n` +
+          `¿Podría compartirme una foto de la parte frontal de su recibo de CFE? 😊`
+        );
+        session.state = 'waiting_front';
+      } else if (/^2/.test(text)) {
+        if (session.clientName) {
+          await send(from,
+            `📅 ¡Con gusto, ${session.clientName}! Visítenos en *Col. Tecnológico*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
+            `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
+          );
+          session.state = 'scheduling';
+        } else {
+          await send(from, `¿Me podría compartir su nombre para agendar la cita? 😊`);
+          session.state = 'menu_nombre_cita';
+        }
+      } else if (/^[34]/.test(text)) {
+        await send(from, `Esta opción estará disponible muy pronto 😊`);
+      } else {
+        await send(from,
+          `Por favor responda con el número de la opción:\n\n` +
+          `1️⃣ Cotización gratis 📸\n` +
+          `2️⃣ Agendar una visita 📅\n` +
+          `3️⃣ Hablar con un asesor 💬\n` +
+          `4️⃣ Tengo una duda ❓`
+        );
+      }
+      break;
+    }
+
+    case 'menu_nombre_cita': {
+      if (!bodyText || bodyText.trim().length < 2) {
+        await send(from, `¿Podría indicarme su nombre, por favor? 😊`);
+        break;
+      }
+      session.clientName = bodyText.trim();
+      await send(from,
+        `📅 ¡Con gusto, ${session.clientName}! Visítenos en *Col. Tecnológico*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
+        `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
+      );
+      session.state = 'scheduling';
       break;
     }
 
