@@ -438,12 +438,22 @@ async function handleIncoming(from, bodyText, mediaId) {
       const no  = /no\b|nop|por ahora no|de momento no|actualmente no|ninguno|ningún/.test(text);
       if (yes) {
         session.wantsGrowth = true;
-        await send(from, `¡Perfecto! 😊 Para generarle su *cotización formal en PDF*, ¿me podría decir su nombre completo?`);
-        session.state = 'waiting_nombre';
+        if (session.clientName) {
+          await send(from, `¡Perfecto! 😊 Para completar su cotización, ¿me podría indicar su dirección o municipio?\nO escriba *"recibo"* para usar la del recibo.`);
+          session.state = 'waiting_direccion';
+        } else {
+          await send(from, `¡Perfecto! 😊 Para generarle su *cotización formal en PDF*, ¿me podría decir su nombre completo?`);
+          session.state = 'waiting_nombre';
+        }
       } else if (no) {
         session.wantsGrowth = false;
-        await send(from, `Entendido 🙏 Para generarle su *cotización formal en PDF*, ¿me podría decir su nombre completo?`);
-        session.state = 'waiting_nombre';
+        if (session.clientName) {
+          await send(from, `Entendido 🙏 Para completar su cotización, ¿me podría indicar su dirección o municipio?\nO escriba *"recibo"* para usar la del recibo.`);
+          session.state = 'waiting_direccion';
+        } else {
+          await send(from, `Entendido 🙏 Para generarle su *cotización formal en PDF*, ¿me podría decir su nombre completo?`);
+          session.state = 'waiting_nombre';
+        }
       } else {
         await send(from, `¿Podría indicarme si tiene planeado agregar aparatos como minisplits o calentadores?\n\nSolo responda *Sí* o *No* 😊`);
       }
