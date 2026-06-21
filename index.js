@@ -314,7 +314,11 @@ async function handleIncoming(from, bodyText, mediaId) {
         if (session.clientName) {
           await send(from,
             `📅 ¡Con gusto, ${session.clientName}! Le esperamos en nuestras *oficinas en Monclova*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
-            `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
+            `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")\n\n` +
+            `🕐 *Nuestro horario de atención:*\n` +
+            `Lunes a Viernes: 9:00 am a 7:00 pm\n` +
+            `Sábados: 9:00 am a 1:30 pm\n` +
+            `Domingos: cerrado`
           );
           session.state = 'scheduling';
         } else {
@@ -343,7 +347,11 @@ async function handleIncoming(from, bodyText, mediaId) {
       session.clientName = bodyText.trim();
       await send(from,
         `📅 ¡Con gusto, ${session.clientName}! Le esperamos en nuestras *oficinas en Monclova*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
-        `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
+        `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")\n\n` +
+        `🕐 *Nuestro horario de atención:*\n` +
+        `Lunes a Viernes: 9:00 am a 7:00 pm\n` +
+        `Sábados: 9:00 am a 1:30 pm\n` +
+        `Domingos: cerrado`
       );
       session.state = 'scheduling';
       break;
