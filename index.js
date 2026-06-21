@@ -525,13 +525,11 @@ async function handleIncoming(from, bodyText, mediaId) {
 
         if (session.wantsGrowth) {
           await send(from,
-            `Le recomendamos agendar una reunión en *nuestras oficinas en Monclova* donde un asesor hará una propuesta completa considerando todos los equipos que planea agregar 🤝\n\n` +
-            `📅 ¿Qué día y horario le quedaría bien? ¿Prefiere *mañana* (9:00–13:00) o *tarde* (14:00–18:00)?`
+            `Como planea agregar más equipos, le recomendamos agendar una reunión en *nuestras oficinas en Monclova*, donde un asesor le hará una propuesta completa 🤝\n\n` +
+            `Puede agendarla en el menú 👇`
           );
-          session.state = 'scheduling';
-        } else {
-          await mostrarMenu(from);
         }
+        await mostrarMenu(from);
       });
       break;
     }
