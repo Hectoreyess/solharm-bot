@@ -247,6 +247,27 @@ function mensajeRetoma(state) {
   }
 }
 
+// ─── Menú principal ───────────────────────────────────────────────────────────
+
+const OPCIONES_TEXT =
+  `¿Qué le gustaría hacer? Responda con el número:\n\n` +
+  `1️⃣ Cotización gratis (analizamos su recibo de luz) 📸\n\n` +
+  `_Después también puede agendar una cita, hablar con un asesor o resolver dudas._\n\n` +
+  `2️⃣ Agendar una visita en nuestras oficinas 📅\n\n` +
+  `_Después también puede cotizar, hablar con un asesor o resolver dudas._\n\n` +
+  `3️⃣ Hablar con un asesor de ventas 💬\n` +
+  `4️⃣ Tengo una duda ❓`;
+
+async function mostrarMenu(from, esSaludo = false) {
+  if (!esSaludo) await new Promise(r => setTimeout(r, 2000));
+  const session = getSession(from);
+  const encabezado = esSaludo
+    ? `¡Hola! 👋 Bienvenido/a a *SOLHARM Energía Solar* ☀️\n\nCon gusto le ayudamos a ahorrar en su recibo de luz.\n\n`
+    : `¿Le puedo ayudar en algo más? 😊\n\n`;
+  await send(from, encabezado + OPCIONES_TEXT);
+  session.state = 'menu';
+}
+
 // ─── Lógica de conversación ───────────────────────────────────────────────────
 
 async function handleIncoming(from, bodyText, mediaId) {
@@ -278,18 +299,7 @@ async function handleIncoming(from, bodyText, mediaId) {
   switch (session.state) {
 
     case 'greeting': {
-      await send(from,
-        `¡Hola! 👋 Bienvenido/a a *SOLHARM Energía Solar* ☀️\n\n` +
-        `Con gusto le ayudamos a ahorrar en su recibo de luz.\n` +
-        `¿Qué le gustaría hacer? Responda con el número:\n\n` +
-        `1️⃣ Cotización gratis (analizamos su recibo de luz) 📸\n\n` +
-        `_Después también puede agendar una cita, hablar con un asesor o resolver dudas._\n\n` +
-        `2️⃣ Agendar una visita en nuestras oficinas 📅\n\n` +
-        `_Después también puede cotizar, hablar con un asesor o resolver dudas._\n\n` +
-        `3️⃣ Hablar con un asesor de ventas 💬\n` +
-        `4️⃣ Tengo una duda ❓`
-      );
-      session.state = 'menu';
+      await mostrarMenu(from, true);
       break;
     }
 
@@ -303,7 +313,7 @@ async function handleIncoming(from, bodyText, mediaId) {
       } else if (/^2/.test(text)) {
         if (session.clientName) {
           await send(from,
-            `📅 ¡Con gusto, ${session.clientName}! Visítenos en *Col. Tecnológico*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
+            `📅 ¡Con gusto, ${session.clientName}! Le esperamos en nuestras *oficinas en Monclova*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
             `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
           );
           session.state = 'scheduling';
@@ -332,7 +342,7 @@ async function handleIncoming(from, bodyText, mediaId) {
       }
       session.clientName = bodyText.trim();
       await send(from,
-        `📅 ¡Con gusto, ${session.clientName}! Visítenos en *Col. Tecnológico*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
+        `📅 ¡Con gusto, ${session.clientName}! Le esperamos en nuestras *oficinas en Monclova*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
         `¿Qué *día y horario* le viene bien? (ej: "martes a las 3pm", "mañana a las 10am")`
       );
       session.state = 'scheduling';
@@ -497,16 +507,12 @@ async function handleIncoming(from, bodyText, mediaId) {
 
         if (session.wantsGrowth) {
           await send(from,
-            `Le recomendamos agendar una reunión en *SOLHARM* (Col. Tecnológico) donde un asesor hará una propuesta completa considerando todos los equipos que planea agregar 🤝\n\n` +
+            `Le recomendamos agendar una reunión en *nuestras oficinas en Monclova* donde un asesor hará una propuesta completa considerando todos los equipos que planea agregar 🤝\n\n` +
             `📅 ¿Qué día y horario le quedaría bien? ¿Prefiere *mañana* (9:00–13:00) o *tarde* (14:00–18:00)?`
           );
           session.state = 'scheduling';
         } else {
-          await send(from,
-            `¿Hay algo más en lo que pueda orientarle?\n\n` +
-            `💳 *Pagos*  ·  🔧 *Instalación*  ·  📅 *Reunión en oficinas*`
-          );
-          session.state = 'followup';
+          await mostrarMenu(from);
         }
       });
       break;
@@ -534,7 +540,7 @@ async function handleIncoming(from, bodyText, mediaId) {
         );
       } else if (/visit|agenda|cita|fecha|hora|técnic|tecnic|gratis|ofic|asesor|reuni/.test(text)) {
         await send(from,
-          `📅 ¡Con gusto! Visítenos en *Col. Tecnológico*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
+          `📅 ¡Con gusto! Le esperamos en nuestras *oficinas en Monclova*. La reunión es *gratuita y sin compromiso* 🤝\n\n` +
           `¿Qué *fecha* le vendría bien y prefiere *mañana* o *tarde*?`
         );
         session.state = 'scheduling';
@@ -611,7 +617,7 @@ async function handleIncoming(from, bodyText, mediaId) {
           `✅ *¡Su cita ha quedado registrada!*\n\n` +
           `Un asesor confirmará los detalles a la brevedad 🤝`
         );
-        session.state = 'done';
+        await mostrarMenu(from);
       }
 
       // ── 2. Confirmación al cliente (fuera del try del calendario) ─────────
@@ -620,10 +626,11 @@ async function handleIncoming(from, bodyText, mediaId) {
           `✅ *¡Cita agendada exitosamente!*\n\n` +
           `📅 *${diaNotif} ${fechaNotif} a las ${horaNotif}*\n` +
           `👤 ${session.clientName}\n\n` +
-          `Le esperamos en nuestras oficinas de *SOLHARM* (Col. Tecnológico) 🤝☀️\n\n` +
+          `📍 Calle Arquímedes 1313, Tecnológico, 25716, Monclova, Coah., México\n` +
+          `🗺️ Cómo llegar: https://www.google.com/maps/search/?api=1&query=26.9226112,-101.4363564\n\n` +
           `¡Gracias por su confianza!`
         );
-        session.state = 'done';
+        await mostrarMenu(from);
       }
 
       // ── 3. Notificación al dueño (independiente de todo lo anterior) ──────
