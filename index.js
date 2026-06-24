@@ -281,10 +281,38 @@ function formatearNumero(num) {
 async function mostrarMenu(from, esSaludo = false) {
   if (!esSaludo) await new Promise(r => setTimeout(r, 2000));
   const session = getSession(from);
-  const encabezado = esSaludo
-    ? `¡Hola! 👋 Bienvenido/a a *SOLHARM Energía Solar* ☀️\n\nCon gusto le ayudamos a ahorrar en su recibo de luz.\n\n`
-    : `¿Le puedo ayudar en algo más? 😊\n\n`;
-  await send(from, encabezado + OPCIONES_TEXT);
+  const bodyText = esSaludo
+    ? `¡Hola! 👋 Bienvenido/a a SOLHARM Energía Solar ☀️\n\nCon gusto le ayudamos a ahorrar en su recibo de luz. ¿Qué le gustaría hacer?`
+    : `¿Le puedo ayudar en algo más? 😊`;
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: from,
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: bodyText },
+          action: {
+            button: 'Ver opciones',
+            sections: [{
+              title: 'Opciones',
+              rows: [
+                { id: '1', title: '☀️ Cotización gratis',  description: 'Analizamos su recibo de luz'      },
+                { id: '2', title: '📅 Agendar visita',     description: 'En nuestras oficinas en Monclova' },
+                { id: '3', title: '💬 Hablar con asesor',  description: 'Un asesor lo contacta'            },
+                { id: '4', title: '❓ Tengo una duda',     description: 'Resuelva sus preguntas'           },
+              ],
+            }],
+          },
+        },
+      },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    console.error('[mostrarMenu error]', err.message, err.response?.data);
+  }
   session.state = 'menu';
 }
 
