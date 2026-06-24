@@ -139,6 +139,16 @@ const BILL_PROMPT =
   'Solo si es IMPOSIBLE extraer datos:\n' +
   '{ "tipo": "error", "mensaje": "razón concreta" }';
 
+async function responderDuda(pregunta) {
+  const response = await withRetry(() => anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 500,
+    system: [{ type: 'text', text: 'Eres un asesor experto en paneles solares y energía solar fotovoltaica, trabajando para SOLHARM, una empresa de instalación de paneles solares en Monclova, Coahuila, México. Respondes dudas de clientes sobre paneles solares en general (cómo funcionan, beneficios, mantenimiento, duración, ahorro, etc.) de forma clara, amable y breve (máximo 4 oraciones), en español mexicano. IMPORTANTE: Si la pregunta es sobre precios exactos, cotizaciones específicas, promociones, disponibilidad, datos internos de SOLHARM, o algo que requiere atención personalizada de un asesor humano, NO inventes la respuesta. En su lugar, responde ÚNICAMENTE con la palabra exacta: DERIVAR_ASESOR (sin nada más). Para dudas generales sobre energía solar, responde normalmente.', cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: pregunta }],
+  }));
+  return response.content[0].text.trim();
+}
+
 async function analyzeBill(frontMediaId, backMediaId = null) {
   const images = await Promise.all(
     [frontMediaId, backMediaId].filter(Boolean).map(downloadMetaImage)
@@ -232,7 +242,7 @@ function detectarFAQ(text) {
   return null;
 }
 
-const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling', 'asesor_nombre', 'pidiendo_numero_asesor'];
+const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling', 'asesor_nombre', 'pidiendo_numero_asesor', 'esperando_duda'];
 
 function mensajeRetoma(state) {
   switch (state) {
@@ -245,6 +255,7 @@ function mensajeRetoma(state) {
     case 'scheduling':             return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
     case 'asesor_nombre':          return '¿Me podría compartir su nombre? 😊';
     case 'pidiendo_numero_asesor': return '¿A qué número de WhatsApp le gustaría que lo contactáramos? 📱';
+    case 'esperando_duda':         return '¿Cuál es su duda sobre energía solar? 😊';
     default:                       return null;
   }
 }
@@ -343,7 +354,8 @@ async function handleIncoming(from, bodyText, mediaId) {
           session.state = 'asesor_nombre';
         }
       } else if (/^4/.test(text)) {
-        await send(from, `Esta opción estará disponible muy pronto 😊`);
+        await send(from, `¡Con mucho gusto! 😊 ¿Cuál es su duda sobre energía solar?`);
+        session.state = 'esperando_duda';
       } else {
         await send(from,
           `Por favor responda con el número de la opción:\n\n` +
@@ -352,6 +364,35 @@ async function handleIncoming(from, bodyText, mediaId) {
           `3️⃣ Hablar con un asesor 💬\n` +
           `4️⃣ Tengo una duda ❓`
         );
+      }
+      break;
+    }
+
+    case 'esperando_duda': {
+      if (/^(menú|menu|salir)$/i.test((bodyText || '').trim())) {
+        await mostrarMenu(from);
+        break;
+      }
+      try {
+        const respuesta = await responderDuda(bodyText);
+        if (respuesta === 'DERIVAR_ASESOR') {
+          await send(from, `Esta duda la puede resolver mejor uno de nuestros asesores 😊`);
+          session.motivoContacto = 'Tiene una duda';
+          if (session.clientName) {
+            await send(from, `Perfecto 😊 ¿A qué número de WhatsApp le gustaría que lo contactáramos? 📱`);
+            session.state = 'pidiendo_numero_asesor';
+          } else {
+            await send(from, `¡Con gusto le atendemos! 😊 ¿Me podría compartir su nombre?`);
+            session.state = 'asesor_nombre';
+          }
+        } else {
+          await send(from, `Un momento, déjeme revisar su duda... 🤔`);
+          await send(from, respuesta);
+          await send(from, `¿Tiene otra duda? Escriba su pregunta, o escriba *menú* para volver. 😊`);
+        }
+      } catch (err) {
+        console.error('[responderDuda error]', err.message);
+        await send(from, `Disculpe, tuve un problema al procesar su duda. Intente de nuevo o escriba *menú* para volver.`);
       }
       break;
     }
@@ -394,7 +435,7 @@ async function handleIncoming(from, bodyText, mediaId) {
                 parameters: [
                   { type: 'text', text: session.clientName },
                   { type: 'text', text: numeroFormateado },
-                  { type: 'text', text: 'Solicita hablar con un asesor' },
+                  { type: 'text', text: session.motivoContacto || 'Solicita hablar con un asesor' },
                 ],
               }],
             },
