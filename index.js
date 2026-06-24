@@ -323,7 +323,7 @@ async function handleIncoming(from, bodyText, mediaId) {
   const text = (bodyText || '').toLowerCase().trim();
 
   const resetWords = ['hola', 'inicio', 'iniciar', 'reiniciar', 'nuevo', 'empezar', 'start', 'menu', 'menú', 'buenas', 'buenos'];
-  if (resetWords.includes(text) && session.state !== 'greeting') {
+  if (resetWords.includes(text) && session.state !== 'greeting' && session.state !== 'esperando_duda') {
     sessions.set(from, { state: 'greeting' });
     session.state = 'greeting';
   }
