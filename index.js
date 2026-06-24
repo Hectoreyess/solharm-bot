@@ -232,7 +232,7 @@ function detectarFAQ(text) {
   return null;
 }
 
-const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling'];
+const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling', 'asesor_nombre', 'pidiendo_numero_asesor'];
 
 function mensajeRetoma(state) {
   switch (state) {
@@ -242,8 +242,10 @@ function mensajeRetoma(state) {
     case 'asking_growth':       return '¿Tiene planeado agregar aparatos eléctricos en el futuro (minisplits, calentador, etc.)? Solo responda *Sí* o *No* 😊';
     case 'waiting_nombre':      return '¿Me podría decir su *nombre completo* para generarle la cotización? 😊';
     case 'waiting_direccion':   return '¿Me podría indicar su *dirección o municipio*? 😊';
-    case 'scheduling':          return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
-    default:                    return null;
+    case 'scheduling':             return '¿Qué *día y horario* le viene bien para la visita? (ej: "martes a las 3pm") 😊';
+    case 'asesor_nombre':          return '¿Me podría compartir su nombre? 😊';
+    case 'pidiendo_numero_asesor': return '¿A qué número de WhatsApp le gustaría que lo contactáramos? 📱';
+    default:                       return null;
   }
 }
 
@@ -257,6 +259,13 @@ const OPCIONES_TEXT =
   `_Después también puede cotizar, hablar con un asesor o resolver dudas._\n\n` +
   `3️⃣ Hablar con un asesor de ventas 💬\n` +
   `4️⃣ Tengo una duda ❓`;
+
+function formatearNumero(num) {
+  const digits = num.replace(/\D/g, '');
+  if (digits.length === 10) return `+52 ${digits.slice(0,3)} ${digits.slice(3,6)} ${digits.slice(6)}`;
+  if (digits.length === 12 && digits.startsWith('52')) return `+${digits.slice(0,2)} ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8)}`;
+  return `+${digits}`;
+}
 
 async function mostrarMenu(from, esSaludo = false) {
   if (!esSaludo) await new Promise(r => setTimeout(r, 2000));
@@ -325,7 +334,15 @@ async function handleIncoming(from, bodyText, mediaId) {
           await send(from, `¿Me podría compartir su nombre para agendar la cita? 😊`);
           session.state = 'menu_nombre_cita';
         }
-      } else if (/^[34]/.test(text)) {
+      } else if (/^3/.test(text)) {
+        if (session.clientName) {
+          await send(from, `Perfecto 😊 ¿A qué número de WhatsApp le gustaría que lo contactáramos? 📱`);
+          session.state = 'pidiendo_numero_asesor';
+        } else {
+          await send(from, `¡Con gusto le atendemos! 😊 ¿Me podría compartir su nombre?`);
+          session.state = 'asesor_nombre';
+        }
+      } else if (/^4/.test(text)) {
         await send(from, `Esta opción estará disponible muy pronto 😊`);
       } else {
         await send(from,
@@ -336,6 +353,59 @@ async function handleIncoming(from, bodyText, mediaId) {
           `4️⃣ Tengo una duda ❓`
         );
       }
+      break;
+    }
+
+    case 'asesor_nombre': {
+      if (!bodyText || bodyText.trim().length < 2) {
+        await send(from, `¿Podría indicarme su nombre, por favor? 😊`);
+        break;
+      }
+      session.clientName = bodyText.trim();
+      await send(from, `Perfecto 😊 ¿A qué número de WhatsApp le gustaría que lo contactáramos? 📱`);
+      session.state = 'pidiendo_numero_asesor';
+      break;
+    }
+
+    case 'pidiendo_numero_asesor': {
+      const soloDigitos = (bodyText || '').replace(/\D/g, '');
+      if (soloDigitos.length < 10) {
+        await send(from, `Por favor ingrese un número válido con al menos 10 dígitos 📱`);
+        break;
+      }
+      session.numeroContacto = soloDigitos;
+      const numeroFormateado = formatearNumero(soloDigitos);
+
+      await send(from, `¡Listo! ✅ Un asesor se pondrá en contacto con usted muy pronto 😊`);
+
+      try {
+        const NUMERO_ASESOR = '528666388384';
+        await axios.post(
+          `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: 'whatsapp',
+            to: NUMERO_ASESOR,
+            type: 'template',
+            template: {
+              name: 'aviso_contacto_cliente',
+              language: { code: 'es_MX' },
+              components: [{
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: session.clientName },
+                  { type: 'text', text: numeroFormateado },
+                  { type: 'text', text: 'Solicita hablar con un asesor' },
+                ],
+              }],
+            },
+          },
+          { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+        );
+      } catch (err) {
+        console.error('[Notif asesor error]', err.message, err.response?.data);
+      }
+
+      await mostrarMenu(from);
       break;
     }
 
