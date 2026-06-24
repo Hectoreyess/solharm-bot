@@ -959,9 +959,15 @@ app.post('/webhook', async (req, res) => {
     const message = value?.messages?.[0];
     if (!message) return;
 
-    const from      = message.from;
-    const bodyText  = message.text?.body || '';
-    const mediaId   = message.image?.id || message.document?.id || null;
+    const from    = message.from;
+    let bodyText  = message.text?.body || '';
+    const mediaId = message.image?.id || message.document?.id || null;
+
+    if (message.type === 'interactive') {
+      bodyText = message.interactive?.button_reply?.id
+              || message.interactive?.list_reply?.id
+              || '';
+    }
 
     await handleIncoming(from, bodyText, mediaId);
   } catch (err) {
