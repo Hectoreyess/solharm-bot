@@ -242,7 +242,7 @@ function detectarFAQ(text) {
   return null;
 }
 
-const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling', 'asesor_nombre', 'pidiendo_numero_asesor', 'esperando_duda'];
+const BLOCKING_STATES = ['menu', 'menu_nombre_cita', 'waiting_front', 'waiting_back', 'asking_growth', 'waiting_nombre', 'waiting_direccion', 'scheduling', 'asesor_nombre', 'pidiendo_numero_asesor'];
 
 function mensajeRetoma(state) {
   switch (state) {
